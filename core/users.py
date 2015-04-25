@@ -1,19 +1,26 @@
-import json
 from bson import json_util
 import bson
-from flask import request, abort
+from flask import request
 import flask
-from core import app
+from flask.ext.login import login_user, current_user, UserMixin, login_required
+import bson.objectid
+
+from core import app, login_manager
 from core import mongo
+
 
 EMAIL = 'email'
 PASSWORD = 'password'
 NAME = 'name'
 
-
-__author__ = 'ko3a4ok'
 ERROR_USER_EXISTS = 'Sorry, user with this email has already registered'
 ERROR_WRONG_CREDENTIALS = 'Sorry, wrong credentials'
+
+
+class User(UserMixin):
+    def __init__(self, u):
+        self.user = u
+        self.id = str(u['_id'])
 
 
 @app.route('/user/register', methods=['POST'])
@@ -34,4 +41,21 @@ def login():
     cur = mongo.db.users.find(user, {PASSWORD: 0})
     if cur.count() == 0:
         return flask.make_response(ERROR_WRONG_CREDENTIALS, 401)
-    return bson.json_util.dumps(cur[0], default=json_util.default)
+    user = cur[0]
+    login_user(User(user))
+    return bson.json_util.dumps(user, default=json_util.default)
+
+
+@app.route('/user/me')
+@login_required
+def settings():
+    return bson.json_util.dumps(current_user.user, default=json_util.default)
+
+
+
+@login_manager.user_loader
+def load_user(user_id):
+    id = bson.ObjectId(user_id)
+    cur = mongo.db.users.find({'_id': id}, {PASSWORD: 0})
+    user = cur[0]
+    return User(user)
