@@ -1,3 +1,4 @@
+import json
 from unittest import TestCase
 import unittest
 import uuid
@@ -45,6 +46,12 @@ class UserRegistration(TestCase):
         self.app.set_cookie('localhost.local', 'session', value=self.cookie)
         res = self.app.get('/user/me')
         assert res.status_code == 200
+        name = str(uuid.uuid4())
+        res = self.app.post('/user/me', data=json.dumps({'name': name}))
+        assert res.status_code == 200
+        res = self.app.get('/user/me')
+        assert res.status_code == 200
+        assert json.loads((res.data.decode('utf8')))['name'] == name
 
 
 if __name__ == '__main__':

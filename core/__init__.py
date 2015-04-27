@@ -13,7 +13,7 @@ mongo = PyMongo(app)
 app.secret_key = 'super secret key'
 app.config['SESSION_TYPE'] = 'filesystem'
 
-import users
+import core.users
 
 @app.route('/')
 def hello_world():

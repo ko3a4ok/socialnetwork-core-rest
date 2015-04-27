@@ -1,3 +1,4 @@
+import json
 from bson import json_util
 import bson
 from flask import request
@@ -12,14 +13,13 @@ from core import mongo
 EMAIL = 'email'
 PASSWORD = 'password'
 NAME = 'name'
-
+PROPERTIES = {PASSWORD: 0}
 ERROR_USER_EXISTS = 'Sorry, user with this email has already registered'
 ERROR_WRONG_CREDENTIALS = 'Sorry, wrong credentials'
 
 
 class User(UserMixin):
     def __init__(self, u):
-        self.user = u
         self.id = str(u['_id'])
 
 
@@ -46,16 +46,20 @@ def login():
     return bson.json_util.dumps(user, default=json_util.default)
 
 
-@app.route('/user/me')
+@app.route('/user/me', methods=['GET', 'POST'])
 @login_required
 def settings():
-    return bson.json_util.dumps(current_user.user, default=json_util.default)
+    id = bson.ObjectId(current_user.id)
+    if request.method == 'POST':
+        new_params = json.loads(request.data.decode('utf8'))
+        mongo.db.users.update({'_id': id}, {'$set': new_params})
+    return bson.json_util.dumps(mongo.db.users.find_one({'_id': id}, PROPERTIES), default=json_util.default)
 
 
 
 @login_manager.user_loader
 def load_user(user_id):
     id = bson.ObjectId(user_id)
-    cur = mongo.db.users.find({'_id': id}, {PASSWORD: 0})
+    cur = mongo.db.users.find({'_id': id}, PROPERTIES)
     user = cur[0]
     return User(user)
