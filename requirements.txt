@@ -1,3 +1,4 @@
+bson
 Flask-PyMongo
 Flask-Login
 pyyaml

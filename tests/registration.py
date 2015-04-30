@@ -53,6 +53,15 @@ class UserRegistration(TestCase):
         assert res.status_code == 200
         assert json.loads((res.data.decode('utf8')))['name'] == name
 
+    def test_get_user(self):
+        self.test_login_user()
+        res = self.app.get('/user/' + str(uuid.uuid4()))
+        assert res.status_code == 404
+        res = self.app.get('/user/me')
+        orig = json.loads((res.data.decode('utf8')))
+        user_id = orig['_id']
+        res = self.app.get('/user/' + user_id)
+        assert orig == json.loads((res.data.decode('utf8')))
 
 if __name__ == '__main__':
     unittest.main()

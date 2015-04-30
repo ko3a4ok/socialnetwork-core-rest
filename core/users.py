@@ -1,11 +1,10 @@
 import json
-from bson import json_util
 import bson
 from flask import request
 import flask
 from flask.ext.login import login_user, current_user, UserMixin, login_required
 import bson.objectid
-
+import core.utils
 from core import app, login_manager
 from core import mongo
 
@@ -16,6 +15,7 @@ NAME = 'name'
 PROPERTIES = {PASSWORD: 0}
 ERROR_USER_EXISTS = 'Sorry, user with this email has already registered'
 ERROR_WRONG_CREDENTIALS = 'Sorry, wrong credentials'
+ERROR_USER_NOT_FOUND = 'Sorry, user not found'
 
 
 class User(UserMixin):
@@ -32,7 +32,7 @@ def register():
     user = {EMAIL: mail, PASSWORD: request.form[PASSWORD]}
     mongo.db.users.insert(user)
     del user[PASSWORD]
-    return bson.json_util.dumps(user, default=json_util.default)
+    return bson.json_util.dumps(user)
 
 
 @app.route('/user/login', methods=['POST'])
@@ -43,7 +43,7 @@ def login():
         return flask.make_response(ERROR_WRONG_CREDENTIALS, 401)
     user = cur[0]
     login_user(User(user))
-    return bson.json_util.dumps(user, default=json_util.default)
+    return bson.json_util.dumps(user)
 
 
 @app.route('/user/me', methods=['GET', 'POST'])
@@ -53,8 +53,19 @@ def settings():
     if request.method == 'POST':
         new_params = json.loads(request.data.decode('utf8'))
         mongo.db.users.update({'_id': id}, {'$set': new_params})
-    return bson.json_util.dumps(mongo.db.users.find_one({'_id': id}, PROPERTIES), default=json_util.default)
+    return bson.json_util.dumps(mongo.db.users.find_one({'_id': id}, PROPERTIES))
 
+@app.route('/user/<id>')
+@login_required
+def get_user(id):
+    try:
+        id = bson.ObjectId(id)
+        res = mongo.db.users.find_one({'_id': id}, PROPERTIES)
+        if not res:
+            raise AttributeError
+        return bson.json_util.dumps(res)
+    except:
+        return flask.make_response(ERROR_USER_NOT_FOUND, 404)
 
 
 @login_manager.user_loader
