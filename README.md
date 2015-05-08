@@ -9,5 +9,8 @@ API:
 * `/user/login` - POST method; login user. parameters: email, password. returns User info and access_token
 * `/user/find?q=UserName&limit=<Size>&offset=<Size>` - GET method; find users
 * `/user/<id>` - GET method; return info about user with user_id
-* `/user/me` - GET/POST method; get and update own profile
+* `/user/me` - GET/POST methods; get and update own profile
+* `/user/<id>/follow` - POST/DELETE methods; follow and unfollow user
+* `/user/<id>/follower?limit=<Size>&offset=<Size>` - GET method; return list of user's followers
+* `/user/<id>/following?limit=<Size>&offset=<Size>` - GET method; return list of user's following
 
