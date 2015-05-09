@@ -14,3 +14,8 @@ API:
 * `/user/<id>/follower?limit=<Size>&offset=<Size>` - GET method; return list of user's followers
 * `/user/<id>/following?limit=<Size>&offset=<Size>` - GET method; return list of user's following
 
+* `/post` - POST method; create new user post
+* `/user/me/post/<post_id>` - PUT/DELETE methods; change or remove user post
+* `/user/<user_id>/post/<post_id>` - GET method; get user's post by id
+* `/timeline/<user_id>?limit=<Size>&offset=<Size>` - GET method; get user posts
+

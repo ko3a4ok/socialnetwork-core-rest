@@ -55,6 +55,7 @@ def settings():
     if request.method == 'POST':
         new_params = json.loads(request.data.decode('utf8'))
         mongo.db.users.update({'_id': id}, {'$set': new_params})
+        redis.hmset(current_user.id, new_params)
     return bson.json_util.dumps(mongo.db.users.find_one({'_id': id}, PROPERTIES))
 
 
@@ -75,14 +76,18 @@ def get_user(id):
 def load_user(user_id):
     return User(get_user(user_id))
 
+
 def get_user(user_id):
     user = get_user_fast(user_id)
     if not user:
         id = bson.ObjectId(user_id)
         cur = mongo.db.users.find({'_id': id}, PROPERTIES)
+        if cur.count() == 0:
+            return None
         user = cur[0]
         redis.hmset(user_id, user)
     return user
+
 
 def get_user_fast(user_id):
     r = redis.hmget(user_id, FAST_USER_PROPERTIES)

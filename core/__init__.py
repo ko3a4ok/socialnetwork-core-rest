@@ -17,6 +17,7 @@ redis = Redis(app.config['REDIS_HOST'], app.config['REDIS_PORT'])
 
 import core.users
 import core.follow
+import core.posts
 
 @app.route('/')
 def hello_world():
