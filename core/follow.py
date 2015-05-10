@@ -1,7 +1,6 @@
 import bson
 from flask import request
 from flask.ext.login import login_required, current_user
-from flask.ext.mongoengine import json
 
 __author__ = 'ko3a4ok'
 from core import app
