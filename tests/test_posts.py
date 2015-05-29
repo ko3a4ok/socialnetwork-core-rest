@@ -1,10 +1,14 @@
+from collections import deque
 from itertools import izip
 import json
+import time
+import itertools
 from core.posts import UPDATED_AT, CREATED_BY
 
 __author__ = 'ko3a4ok'
-from test_follow import app
+from test_follow import app, DEFAULT_PASSWORD
 from test_follow import auth_app
+from test_follow import generated_users
 
 
 def test_create_post(auth_app):
@@ -73,4 +77,44 @@ def test_timeline(auth_app):
 
     for orig_post, post in izip(subset_orig_posts, posts):
         assert post[CREATED_BY]['_id'] == my_id
+        assert post['text'] == orig_post['text']
+
+
+def _post_message_by_user(app, user):
+    data = dict(
+            email=user['email'],
+            password=DEFAULT_PASSWORD
+    )
+    r = app.post('/user/login', data=data)
+    orig = json.loads((r.data.decode('utf8')))
+
+    assert r.status_code == 200
+    orig_post = {"text": "Message from user {} at ".format(user['email'], str(time.time()))}
+    r = app.post('/post', data=json.dumps(orig_post))
+    orig_post[CREATED_BY] = orig["_id"]
+    assert r.status_code == 200
+    return orig_post
+
+
+def test_feed(auth_app, generated_users):
+    cookie = auth_app.cookie_jar._cookies['localhost.local']['/']['session'].value
+    post_cnt = 30
+    offset = 11
+    limit = 6
+    orig_posts = deque()
+    for _ in range(post_cnt):
+        for user in generated_users:
+            orig_posts.appendleft(_post_message_by_user(auth_app, user))
+
+    subset_orig_posts = list(itertools.islice(orig_posts, offset, offset+limit))
+    auth_app.set_cookie('localhost.local', 'session', value=cookie)
+
+    for user in generated_users:
+        r = auth_app.post('/user/{}/follow'.format(user['_id']))
+        assert r.status_code == 200
+    r = auth_app.get('/feed?offset={}&limit={}'.format(offset, limit))
+    posts = json.loads(r.data.decode('utf8'))['posts']
+
+    for orig_post, post in izip(subset_orig_posts, posts):
+        assert post[CREATED_BY]['_id'] == orig_post[CREATED_BY]
         assert post['text'] == orig_post['text']
