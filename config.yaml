@@ -1,5 +1,0 @@
-MONGO_HOST: mongo-server
-MONGO_PORT: 27017
-MONGO_DBNAME: socialnetwork
-REDIS_HOST: redis-server
-REDIS_PORT: 6379

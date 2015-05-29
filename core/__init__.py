@@ -4,16 +4,16 @@ from flask import Flask
 from flask.ext.login import LoginManager
 from flask.ext.pymongo import PyMongo
 from redis import Redis
-import yaml
 
 app = Flask(__name__)
 login_manager = LoginManager(app)
-MONGO_CONFIG = yaml.load(open(os.path.dirname(os.path.realpath(__file__)) + '/../config.yaml'))
+print('MONGOURL: ', os.environ.get('MONGOLAB_URI'))
+MONGO_CONFIG = {'MONGO_URI': os.environ.get('MONGOLAB_URI')}
 app.config.update(MONGO_CONFIG)
 mongo = PyMongo(app)
 app.secret_key = 'super secret key'
 app.config['SESSION_TYPE'] = 'filesystem'
-redis = Redis(app.config['REDIS_HOST'], app.config['REDIS_PORT'])
+redis = Redis.from_url(os.environ.get('REDISCLOUD_URL'))
 
 import core.users
 import core.follow
@@ -21,6 +21,6 @@ import core.posts
 
 @app.route('/')
 def hello_world():
-    return 'Hello World!'
+    return 'REST API for social network template'
 
 
