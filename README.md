@@ -18,4 +18,5 @@ API:
 * `/user/me/post/<post_id>` - PUT/DELETE methods; change or remove user post
 * `/user/<user_id>/post/<post_id>` - GET method; get user's post by id
 * `/timeline/<user_id>?limit=<Size>&offset=<Size>` - GET method; get user posts
+* `/feed?limit=<Size>&offset=<Size>` - GET method; get current and following users' posts
 
