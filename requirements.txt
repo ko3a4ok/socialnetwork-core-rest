@@ -1,6 +1,5 @@
 Flask-PyMongo
 Flask-Login
-pyyaml
 redis
 pytest
 gunicorn
