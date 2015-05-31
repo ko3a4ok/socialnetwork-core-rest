@@ -1,11 +1,12 @@
 import json
+from multiprocessing.pool import ThreadPool
 import bson
 from flask import request
 import flask
 from flask.ext.login import login_user, current_user, UserMixin, login_required
 import bson.objectid
 import core.utils
-from core import app, login_manager, redis
+from core import app, login_manager, redis, search, SEARCH_INDEX
 from core import mongo
 
 
@@ -19,6 +20,7 @@ ERROR_USER_EXISTS = 'Sorry, user with this email has already registered'
 ERROR_WRONG_CREDENTIALS = 'Sorry, wrong credentials'
 ERROR_USER_NOT_FOUND = 'Sorry, user not found'
 FAST_USER_PROPERTIES = ['_id', 'name']
+pool = ThreadPool(processes=5)
 
 
 class User(UserMixin):
@@ -50,6 +52,14 @@ def login():
     return bson.json_util.dumps(user)
 
 
+def _update_user_in_search_db(user):
+    id = str(user['_id'])
+    del user[EMAIL]
+    del user['_id']
+    user['user_id'] = id
+    search.index(SEARCH_INDEX, doc_type="user", id=id, body=bson.json_util.dumps(user))
+
+
 @app.route('/user/me', methods=['GET', 'POST'])
 @login_required
 def settings():
@@ -58,6 +68,8 @@ def settings():
         new_params = json.loads(request.data.decode('utf8'))
         mongo.db.users.update({'_id': id}, {'$set': new_params})
         redis.hmset(current_user.id, new_params)
+        user = mongo.db.users.find_one({'_id': bson.ObjectId(id)}, PROPERTIES)
+        pool.apply_async(_update_user_in_search_db, kwds={'user': user})
     return user_profile(id)
 
 
@@ -106,3 +118,28 @@ def get_user_fast(user_id):
 def user_list_output(user_ids, offset, limit):
     users = map(get_user, user_ids)
     return bson.json_util.dumps({'offset': offset, 'limit': limit, 'users': users})
+
+@app.route('/user/find')
+def search_user():
+    q = {
+        'from': int(request.args.get('offset', 0)),
+        'size': int(request.args.get('limit', 10)),
+        'query': {
+            'match': {
+                'name': request.args.get('q', '')
+            }
+        }
+    }
+
+    res = search.search(index=SEARCH_INDEX, doc_type='user', body=q)
+    total = res['hits']['total']
+    users = []
+    for hit in res['hits']['hits']:
+        user = hit['_source']
+        user['_id'] = user.pop('user_id')
+        users.append(user)
+    result = {
+        'total': total,
+        'users': users
+    }
+    return bson.json_util.dumps(result)

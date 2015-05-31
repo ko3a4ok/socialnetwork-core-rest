@@ -3,3 +3,4 @@ Flask-Login
 redis
 pytest
 gunicorn
+elasticsearch
