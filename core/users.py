@@ -12,7 +12,9 @@ from core import mongo
 EMAIL = 'email'
 PASSWORD = 'password'
 NAME = 'name'
-PROPERTIES = {PASSWORD: 0}
+FOLLOWERS = 'followers'
+FOLLOWING = 'following'
+PROPERTIES = {PASSWORD: 0, FOLLOWING: 0, FOLLOWERS : 0}
 ERROR_USER_EXISTS = 'Sorry, user with this email has already registered'
 ERROR_WRONG_CREDENTIALS = 'Sorry, wrong credentials'
 ERROR_USER_NOT_FOUND = 'Sorry, user not found'
@@ -56,17 +58,22 @@ def settings():
         new_params = json.loads(request.data.decode('utf8'))
         mongo.db.users.update({'_id': id}, {'$set': new_params})
         redis.hmset(current_user.id, new_params)
-    return bson.json_util.dumps(mongo.db.users.find_one({'_id': id}, PROPERTIES))
+    return user_profile(id)
 
 
 @app.route('/user/<id>')
 @login_required
-def get_user(id):
+def user_profile(id):
     try:
         id = bson.ObjectId(id)
-        res = mongo.db.users.find_one({'_id': id}, PROPERTIES)
+        q = {'_id': id}
+        p = {'$project': {FOLLOWING + '_count': {'$size': {'$ifNull': ["$" + FOLLOWING, []]}},
+                          FOLLOWERS + '_count': {'$size': {'$ifNull': ["$" + FOLLOWERS, []]}}}}
+        res = mongo.db.users.find_one(q, PROPERTIES)
         if not res:
             raise AttributeError
+        ar = mongo.db.users.aggregate([{'$match': q}, p])
+        res.update(ar['result'][0])
         return bson.json_util.dumps(res)
     except:
         return flask.make_response(ERROR_USER_NOT_FOUND, 404)

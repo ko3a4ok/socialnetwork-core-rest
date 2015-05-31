@@ -102,3 +102,35 @@ def test_unfollow(auth_app, generated_users):
         users = json.loads(content)['users']
         follower_user_ids = {_['_id'] for _ in users}
         assert (user_id in following_user_ids) ^ (my_id not in follower_user_ids)
+
+
+def _get_following_user_ids(my_id, auth_app):
+    path = '/user/{}/following?limit={}'.format(my_id, 1000)
+    content = auth_app.get(path).data.decode('utf8')
+    res = json.loads(content)
+    users = res['users']
+    following_user_ids = {_['_id'] for _ in users}
+    return following_user_ids
+
+def _get_current_user(auth_app):
+    res = auth_app.get('/user/me')
+    user = json.loads((res.data.decode('utf8')))
+    return user
+
+
+def test_following_amount(auth_app, generated_users):
+    my_id = _get_current_user(auth_app)['_id']
+
+    for user_id in _get_following_user_ids(my_id, auth_app):
+        path = '/user/{}/follow'.format(user_id)
+        auth_app.delete(path)
+
+    assert len(_get_following_user_ids(my_id, auth_app)) == 0
+    assert _get_current_user(auth_app)['following_count'] == 0
+    user_ids = {_['_id'] for _ in generated_users}
+    following_count = 0
+    for user_id in user_ids:
+        path = '/user/{}/follow'.format(user_id)
+        auth_app.post(path)
+        following_count += 1
+    assert _get_current_user(auth_app)['following_count'] == following_count

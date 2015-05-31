@@ -5,10 +5,8 @@ from flask.ext.login import login_required, current_user
 __author__ = 'ko3a4ok'
 from core import app
 from core import mongo
-from core.users import user_list_output
+from core.users import user_list_output, FOLLOWING, FOLLOWERS
 
-FOLLOWERS = 'followers'
-FOLLOWING = 'following'
 
 @app.route('/user/<id>/follow', methods=['POST'])
 @login_required
