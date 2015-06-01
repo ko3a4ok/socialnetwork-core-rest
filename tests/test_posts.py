@@ -20,7 +20,7 @@ def test_create_post(auth_app):
     res = auth_app.get('/user/me')
     global my_id
     my_id = json.loads((res.data.decode('utf8')))['_id']
-    r = auth_app.get('/user/{}/post/{}'.format(my_id, post_id))
+    r = auth_app.get('/post/{}'.format(post_id))
     assert r.status_code == 200
     post = json.loads(r.data.decode('utf8'))
     assert post['text'] == orig_post['text']
@@ -32,7 +32,7 @@ def test_update_post(auth_app):
     new_post = {"text": "Changed post"}
     r = auth_app.put('/user/me/post/{}'.format(post_id), data=json.dumps(new_post))
     assert r.status_code == 200
-    r = auth_app.get('/user/{}/post/{}'.format(my_id, post_id))
+    r = auth_app.get('/post/{}'.format(post_id))
     assert r.status_code == 200
     post = json.loads(r.data.decode('utf8'))
     assert post[UPDATED_AT]
@@ -43,16 +43,13 @@ def test_delete_post(auth_app):
     global post_id, my_id
     r = auth_app.delete('/user/me/post/{}'.format(post_id))
     assert r.status_code == 200
-    r = auth_app.get('/user/{}/post/{}'.format(my_id, post_id))
+    r = auth_app.get('/post/{}'.format(post_id))
     assert r.status_code == 404
 
 
 def test_post_not_found(auth_app):
     not_exist_post_id = '0'*24
-    not_exist_user_id = '0'*24
-    r = auth_app.get('/user/{}/post/{}'.format(my_id, not_exist_post_id))
-    assert r.status_code == 404
-    r = auth_app.get('/user/{}/post/{}'.format(not_exist_user_id, not_exist_post_id))
+    r = auth_app.get('/post/{}'.format(not_exist_post_id))
     assert r.status_code == 404
     r = auth_app.put('/user/me/post/{}'.format(not_exist_post_id), data='{}')
     assert r.status_code == 404
@@ -118,3 +115,44 @@ def test_feed(auth_app, generated_users):
     for orig_post, post in izip(subset_orig_posts, posts):
         assert post[CREATED_BY]['_id'] == orig_post[CREATED_BY]
         assert post['text'] == orig_post['text']
+
+def _like_message_by_user(app, user, post_id, like):
+    data = dict(
+            email=user['email'],
+            password=DEFAULT_PASSWORD
+    )
+    r = app.post('/user/login', data=data)
+    assert r.status_code == 200
+    m = app.post if like else app.delete
+    r = m('/post/{}/like'.format(post_id))
+    assert r.status_code == 200
+    return json.loads(r.data.decode('utf8'))
+
+
+def test_likes(auth_app, generated_users):
+    orig_post = {"text": "Test message"}
+    r = auth_app.post('/post', data=json.dumps(orig_post))
+    assert r.status_code == 200
+    post_id = json.loads(r.data.decode('utf8'))['_id']
+    likes_count = 0
+    for user in generated_users:
+        r = _like_message_by_user(auth_app, user, post_id, True)
+        likes_count += 1
+        assert r['likes_count'] == likes_count
+
+    for user in generated_users:
+        r = _like_message_by_user(auth_app, user, post_id, True)
+        assert r['likes_count'] == likes_count
+
+    for user in generated_users:
+        r = _like_message_by_user(auth_app, user, post_id, False)
+        likes_count -= 1
+        assert r['likes_count'] == likes_count
+
+
+def test_likes_not_found(auth_app):
+    not_exist_post_id = '0'*24
+    r = auth_app.post('/post/{}/like'.format(not_exist_post_id))
+    assert r.status_code == 404
+    r = auth_app.delete('/user/me/post/{}'.format(not_exist_post_id), data='{}')
+    assert r.status_code == 404
