@@ -18,8 +18,10 @@ CREATED_BY = 'created_by'
 UPDATED_AT = 'updated_at'
 
 POSTS = 'posts'
+LIKES = 'likes'
 
 ERROR_POST_NOT_FOUND = 'Sorry, but post not found'
+PROPERTIES = {LIKES: 0}
 
 @app.route('/post', methods=['POST'])
 @login_required
@@ -31,14 +33,14 @@ def post():
     return bson.json_util.dumps({'_id': result})
 
 
-@app.route('/user/<user_id>/post/<post_id>')
+@app.route('/post/<post_id>')
 @login_required
-def get_post(user_id, post_id):
+def get_post(post_id):
     post_id = bson.ObjectId(post_id)
-    r = mongo.db[POSTS].find_one({'_id': post_id})
+    r = mongo.db[POSTS].find_one({'_id': post_id}, PROPERTIES)
     if not r:
         return flask.make_response(ERROR_POST_NOT_FOUND, 404)
-    r[CREATED_BY] = core.users.get_user_fast(user_id)
+    r[CREATED_BY] = core.users.get_user_fast(r[CREATED_BY])
     return bson.json_util.dumps(r)
 
 
@@ -73,7 +75,7 @@ def timeline(user_id):
     limit = int(request.args.get('limit', 10))
     offset = int(request.args.get('offset', 0))
     uid = bson.ObjectId(current_user.id)
-    r = mongo.db[POSTS].find({CREATED_BY: uid}).sort([(CREATED_AT, -1)]).skip(offset).limit(limit)
+    r = mongo.db[POSTS].find({CREATED_BY: uid}, PROPERTIES).sort([(CREATED_AT, -1)]).skip(offset).limit(limit)
     posts = list(r)
     for post in posts:
         post[CREATED_BY] = user
@@ -88,8 +90,26 @@ def feed():
     uid = bson.ObjectId(current_user.id)
     f = mongo.db.users.find_one({'_id': uid}, {'_id': 0, FOLLOWING: 1})
     following = f[FOLLOWING] + [uid]
-    r = mongo.db[POSTS].find({CREATED_BY: {"$in": following}}).sort([(CREATED_AT, -1)]).skip(offset).limit(limit)
+    r = mongo.db[POSTS].find({CREATED_BY: {"$in": following}}, PROPERTIES).sort([(CREATED_AT, -1)]).skip(offset).limit(limit)
     posts = list(r)
     for post in posts:
         post[CREATED_BY] = get_user(str(post[CREATED_BY]))
     return bson.json_util.dumps({'posts': posts})
+
+@app.route('/post/<post_id>/like', methods=['POST', 'DELETE'])
+@login_required
+def like(post_id):
+    post_id = bson.ObjectId(post_id)
+    my_id = bson.ObjectId(current_user.id)
+    r = mongo.db.posts.find_one({'_id': post_id}, {'_id': 1})
+    if not r:
+        return flask.make_response(ERROR_POST_NOT_FOUND, 404)
+    if request.method == 'POST':
+        mongo.db.posts.update({'_id': post_id}, {'$addToSet': {LIKES: my_id}})
+    else:
+        mongo.db.posts.update({'_id': post_id}, {'$pull': {LIKES: my_id}})
+    p = {'$project': {LIKES + '_count': {'$size': {'$ifNull': ["$" + LIKES, []]}}}}
+    ar = mongo.db.posts.aggregate([{'$match': {'_id': post_id}}, p])
+    likes_count = ar['result'][0]
+    mongo.db.posts.update({'_id': post_id}, {'$set': likes_count})
+    return bson.json_util.dumps(likes_count)
