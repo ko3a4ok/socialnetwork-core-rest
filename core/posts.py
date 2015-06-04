@@ -20,6 +20,7 @@ UPDATED_AT = 'updated_at'
 POSTS = 'posts'
 LIKES = 'likes'
 
+OWN_LIKE = "own_like"
 ERROR_POST_NOT_FOUND = 'Sorry, but post not found'
 PROPERTIES = {LIKES: 0}
 
@@ -66,35 +67,43 @@ def delete_post(post_id):
     return '{}'
 
 
+def _get_posts(created_by):
+    limit = int(request.args.get('limit', 10))
+    before = request.args.get('before', 'f'*24)
+    uid = bson.ObjectId(current_user.id)
+    POST = 'post'
+    p = {POST: '$$ROOT', OWN_LIKE: {'$setIsSubset': [[uid], {'$ifNull': ['$' + LIKES, []]}]}}
+    m = {CREATED_BY: created_by, "_id": {'$lt': bson.ObjectId(before)}}
+    r = mongo.db.posts.aggregate([
+        {'$match': m},
+        {'$sort': {'_id': -1}},
+        {'$limit': limit},
+        {'$project': p},
+    ])
+    posts = list(r['result'])
+    for post in posts:
+        p = post[POST]
+        if LIKES in p:
+            del p[LIKES]
+        del post[POST]
+        post.update(p)
+        post[CREATED_BY] = get_user(str(post[CREATED_BY]))
+    return bson.json_util.dumps({'posts': posts})
+
 @app.route('/timeline/<user_id>')
 @login_required
 def timeline(user_id):
-    user = get_user(user_id)
-    if not user:
-        return flask.make_response(ERROR_USER_NOT_FOUND, 404)
-    limit = int(request.args.get('limit', 10))
-    offset = int(request.args.get('offset', 0))
-    uid = bson.ObjectId(current_user.id)
-    r = mongo.db[POSTS].find({CREATED_BY: uid}, PROPERTIES).sort([(CREATED_AT, -1)]).skip(offset).limit(limit)
-    posts = list(r)
-    for post in posts:
-        post[CREATED_BY] = user
-    return bson.json_util.dumps({'posts': posts})
-
+    return _get_posts(bson.ObjectId(user_id))
 
 @app.route('/feed')
 @login_required
 def feed():
-    limit = int(request.args.get('limit', 10))
-    offset = int(request.args.get('offset', 0))
     uid = bson.ObjectId(current_user.id)
     f = mongo.db.users.find_one({'_id': uid}, {'_id': 0, FOLLOWING: 1})
+    if FOLLOWING not in f:
+        f[FOLLOWING] = []
     following = f[FOLLOWING] + [uid]
-    r = mongo.db[POSTS].find({CREATED_BY: {"$in": following}}, PROPERTIES).sort([(CREATED_AT, -1)]).skip(offset).limit(limit)
-    posts = list(r)
-    for post in posts:
-        post[CREATED_BY] = get_user(str(post[CREATED_BY]))
-    return bson.json_util.dumps({'posts': posts})
+    return _get_posts({"$in": following})
 
 @app.route('/post/<post_id>/like', methods=['POST', 'DELETE'])
 @login_required
