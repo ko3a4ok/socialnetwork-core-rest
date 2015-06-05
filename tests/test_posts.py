@@ -165,6 +165,7 @@ def test_likes_not_found(auth_app):
     r = auth_app.delete('/user/me/post/{}'.format(not_exist_post_id), data='{}')
     assert r.status_code == 404
 
+
 def test_own_like(auth_app):
     post_cnt = 20
     orig_posts = [{'text': 'Post message #' + str(_)} for _ in range(post_cnt)]
@@ -184,3 +185,26 @@ def test_own_like(auth_app):
     posts = json.loads(r.data.decode('utf8'))['posts']
     for p in posts:
         assert p['own_like'] == (p['_id'] in liked_posts)
+
+
+def test_likers(auth_app, generated_users):
+    cookie = auth_app.cookie_jar._cookies['localhost.local']['/']['session'].value
+    orig_post = {"text": "Test message"}
+    r = auth_app.post('/post', data=json.dumps(orig_post))
+    assert r.status_code == 200
+    post_id = json.loads(r.data.decode('utf8'))['_id']
+    for u in generated_users:
+        _like_message_by_user(auth_app, u, post_id, True)
+    user_ids = {u['_id'] for u in generated_users}
+    auth_app.set_cookie('localhost.local', 'session', value=cookie)
+    limit = 5
+    offset = 0
+    while True:
+        r = auth_app.get('/post/{}/like?limit={}&offset={}'.format(post_id, limit, offset))
+        users = json.loads(r.data.decode('utf8'))['users']
+        ids = {u['_id'] for u in users}
+        assert ids <= user_ids
+        user_ids = user_ids - ids
+        offset += limit
+        if len(users) < limit:
+            break

@@ -20,4 +20,5 @@ API:
 * `/timeline/<user_id>?limit=<Size>&before=<post_id>` - GET method; get user posts
 * `/feed?limit=<Size>&before=<post_id>` - GET method; get current and following users' posts
 * `/post/<post_id>/like` - POST/DELETE methods; add or remove like for user post
+* `/post/<post_id>/like?limit=<Size>&offset=<Size>` - GET method; return list of users who like this post
 
