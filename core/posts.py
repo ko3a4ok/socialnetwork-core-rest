@@ -11,7 +11,7 @@ __author__ = 'ko3a4ok'
 
 from core import app
 from core import mongo
-from core.users import get_user, ERROR_USER_NOT_FOUND
+from core.users import get_user, ERROR_USER_NOT_FOUND, user_list_output
 
 CREATED_AT = 'created_at'
 CREATED_BY = 'created_by'
@@ -122,3 +122,15 @@ def like(post_id):
     likes_count = ar['result'][0]
     mongo.db.posts.update({'_id': post_id}, {'$set': likes_count})
     return bson.json_util.dumps(likes_count)
+
+@app.route('/post/<post_id>/like')
+@login_required
+def get_likers(post_id):
+    post_id = bson.ObjectId(post_id)
+    r = mongo.db.posts.find_one({'_id': post_id}, {'_id': 1})
+    if not r:
+        return flask.make_response(ERROR_POST_NOT_FOUND, 404)
+    limit = int(request.args.get('limit', 10))
+    offset = int(request.args.get('offset', 0))
+    res = mongo.db.posts.find_one({'_id': post_id}, {LIKES: {'$slice': [offset, limit]}})[LIKES]
+    return user_list_output(res, offset, limit)
