@@ -85,6 +85,9 @@ def _get_posts(created_by):
         p = post[POST]
         if LIKES in p:
             del p[LIKES]
+        from core.comments import COMMENTS
+        if COMMENTS in p:
+            del p[COMMENTS]
         del post[POST]
         post.update(p)
         post[CREATED_BY] = get_user(str(post[CREATED_BY]))

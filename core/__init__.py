@@ -22,9 +22,11 @@ search.indices.create(index=SEARCH_INDEX, ignore=400)
 import core.users
 import core.follow
 import core.posts
+import core.comments
 
 @app.route('/')
 def hello_world():
-    return 'REST API for social network template'
-
-
+    r = 'REST API for social network template'
+    for rule in app.url_map.iter_rules():
+        r += "<br/><a href=\"{link}\">{link}</a>".format(link=str(rule))
+    return r
