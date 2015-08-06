@@ -19,7 +19,7 @@ PROPERTIES = {PASSWORD: 0, FOLLOWING: 0, FOLLOWERS : 0}
 ERROR_USER_EXISTS = 'Sorry, user with this email has already registered'
 ERROR_WRONG_CREDENTIALS = 'Sorry, wrong credentials'
 ERROR_USER_NOT_FOUND = 'Sorry, user not found'
-FAST_USER_PROPERTIES = ['_id', 'name']
+FAST_USER_PROPERTIES = ['_id', 'name', 'mini_profile_url']
 pool = ThreadPool(processes=5)
 
 
