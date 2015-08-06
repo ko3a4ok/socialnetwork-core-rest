@@ -135,5 +135,6 @@ def get_likers(post_id):
         return flask.make_response(ERROR_POST_NOT_FOUND, 404)
     limit = int(request.args.get('limit', 10))
     offset = int(request.args.get('offset', 0))
-    res = mongo.db.posts.find_one({'_id': post_id}, {LIKES: {'$slice': [offset, limit]}})[LIKES]
+    res = mongo.db.posts.find_one({'_id': post_id}, {LIKES: {'$slice': [offset, limit]}})
+    res = res[LIKES] if LIKES in res else []
     return user_list_output(res, offset, limit)
