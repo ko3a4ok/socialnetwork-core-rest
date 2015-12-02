@@ -5,3 +5,4 @@ pytest
 gunicorn
 elasticsearch
 flask-cors
+requests
