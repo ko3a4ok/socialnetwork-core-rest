@@ -2,6 +2,7 @@ import os
 
 from elasticsearch import Elasticsearch
 from flask import Flask
+from flask.ext.cors import CORS
 from flask.ext.login import LoginManager
 from flask.ext.pymongo import PyMongo
 from redis import Redis
@@ -9,6 +10,7 @@ from redis import Redis
 SEARCH_INDEX = "main-index"
 
 app = Flask(__name__)
+cors = CORS(app)
 login_manager = LoginManager(app)
 MONGO_CONFIG = {'MONGO_URI': os.environ.get('MONGOLAB_URI')}
 app.config.update(MONGO_CONFIG)

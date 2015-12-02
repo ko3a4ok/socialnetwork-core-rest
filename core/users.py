@@ -1,3 +1,4 @@
+from functools import wraps
 import json
 from multiprocessing.pool import ThreadPool
 import bson
@@ -8,6 +9,7 @@ import bson.objectid
 import core.utils
 from core import app, login_manager, redis, search, SEARCH_INDEX
 from core import mongo
+from flask.ext.cors import cross_origin
 
 
 EMAIL = 'email'
@@ -22,6 +24,17 @@ ERROR_USER_NOT_FOUND = 'Sorry, user not found'
 FAST_USER_PROPERTIES = ['_id', 'name', 'mini_profile_url']
 pool = ThreadPool(processes=5)
 
+def support_jsonp(f):
+    """Wraps JSONified output for JSONP"""
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        callback = request.args.get('callback', False)
+        if callback:
+            content = str(callback) + '(' + str(f().data) + ')'
+            return app.response_class(content, mimetype='application/json')
+        else:
+            return f(*args, **kwargs)
+    return decorated_function
 
 class User(UserMixin):
     def __init__(self, u):
@@ -42,6 +55,7 @@ def register():
 
 
 @app.route('/user/login', methods=['POST'])
+@cross_origin(supports_credentials=True)
 def login():
     user = {EMAIL: request.form[EMAIL], PASSWORD: request.form[PASSWORD]}
     cur = mongo.db.users.find(user, {PASSWORD: 0})
@@ -62,6 +76,7 @@ def _update_user_in_search_db(user):
 
 @app.route('/user/me', methods=['GET', 'POST'])
 @login_required
+@support_jsonp
 def settings():
     id = bson.ObjectId(current_user.id)
     if request.method == 'POST':
@@ -86,7 +101,8 @@ def user_profile(id):
             raise AttributeError
         ar = mongo.db.users.aggregate([{'$match': q}, p])
         res.update(ar['result'][0])
-        return bson.json_util.dumps(res)
+        mydata = bson.json_util.dumps(res)
+        return flask.Response(mydata,  mimetype='application/json')
     except:
         return flask.make_response(ERROR_USER_NOT_FOUND, 404)
 

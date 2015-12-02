@@ -4,3 +4,4 @@ redis
 pytest
 gunicorn
 elasticsearch
+flask-cors
