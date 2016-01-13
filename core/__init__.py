@@ -19,7 +19,10 @@ app.secret_key = 'super secret key'
 app.config['SESSION_TYPE'] = 'filesystem'
 redis = Redis.from_url(os.environ.get('REDISCLOUD_URL'))
 search = Elasticsearch(os.environ.get('BONSAI_URL'))
-search.indices.create(index=SEARCH_INDEX, ignore=400)
+try:
+    search.indices.create(index=SEARCH_INDEX, ignore=400)
+except:
+    print 'ElasticSearch not started'
 
 import core.users
 import core.follow
