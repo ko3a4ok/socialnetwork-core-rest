@@ -120,9 +120,12 @@ def settings():
     if request.method == 'POST':
         new_params = json.loads(request.data.decode('utf8'))
         mongo.db.users.update({'_id': id}, {'$set': new_params})
-        redis.hmset(current_user.id, new_params)
-        user = mongo.db.users.find_one({'_id': bson.ObjectId(id)}, PROPERTIES)
-        pool.apply_async(_update_user_in_search_db, kwds={'user': user})
+        try:
+            redis.hmset(current_user.id, new_params)
+            user = mongo.db.users.find_one({'_id': bson.ObjectId(id)}, PROPERTIES)
+            pool.apply_async(_update_user_in_search_db, kwds={'user': user})
+        except:
+            pass
     return user_profile(id)
 
 
@@ -158,15 +161,21 @@ def get_user(user_id):
         if cur.count() == 0:
             return None
         user = cur[0]
-        redis.hmset(user_id, user)
+        try:
+            redis.hmset(user_id, user)
+        except:
+            pass
     return user
 
 
 def get_user_fast(user_id):
-    r = redis.hmget(user_id, FAST_USER_PROPERTIES)
-    if r.count(None) == len(r):
+    try:
+        r = redis.hmget(user_id, FAST_USER_PROPERTIES)
+        if r.count(None) == len(r):
+            return None
+        return dict(zip(FAST_USER_PROPERTIES, r))
+    except:
         return None
-    return dict(zip(FAST_USER_PROPERTIES, r))
 
 
 def user_list_output(user_ids, offset, limit):
